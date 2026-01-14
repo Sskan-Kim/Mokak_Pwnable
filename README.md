@@ -1,2 +1,9 @@
-# Mokak_Pwnable
-Mokakso Project 2025-2
+### Mokakso Project
+
+## Introduce
+
+아주대학교 SW중심대학사업의 동계 모각소 활동 내용 기록본
+
+## Goal
+
+기초 어셈블리어와 메모리 구조 학습을 병행하며, Dreamhack에서 워게임 단계별 문제를 매일 1~2개씩 해결하고 익스플로잇 코드를 직접 작성한다
